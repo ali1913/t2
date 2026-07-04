@@ -5,6 +5,12 @@ import '../models/row_entry.dart';
 const List<String> kColumnLabels = ['A', 'B', 'C', 'D', 'E'];
 const String kRowsBoxName = 'rows_box';
 
+// Fixed column widths — keeps columns compact instead of relying on
+// DataTable's built-in padding (which is hard to shrink below ~56px/col).
+const double kDateColWidth = 86;
+const double kDataColWidth = 42;
+const double kDeleteColWidth = 40;
+
 class TrackerTab extends StatefulWidget {
   const TrackerTab({super.key});
 
@@ -19,10 +25,23 @@ class _TrackerTabState extends State<TrackerTab> {
   // lose cursor position or get reset on rebuild.
   final Map<String, TextEditingController> _controllers = {};
 
+  final ScrollController _vScroll = ScrollController();
+  final ScrollController _hScroll = ScrollController();
+
   @override
   void initState() {
     super.initState();
     _box = Hive.box<RowEntry>(kRowsBoxName);
+    // Land on the most recent rows / far edge instead of the top-left.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd());
+  }
+
+  void _scrollToEnd() {
+    for (final controller in [_vScroll, _hScroll]) {
+      if (controller.hasClients) {
+        controller.jumpTo(controller.position.maxScrollExtent);
+      }
+    }
   }
 
   @override
@@ -30,6 +49,8 @@ class _TrackerTabState extends State<TrackerTab> {
     for (final c in _controllers.values) {
       c.dispose();
     }
+    _vScroll.dispose();
+    _hScroll.dispose();
     super.dispose();
   }
 
@@ -49,6 +70,7 @@ class _TrackerTabState extends State<TrackerTab> {
     );
     _box.add(entry);
     setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd());
   }
 
   Future<void> _pickDate(RowEntry entry) async {
@@ -74,7 +96,7 @@ class _TrackerTabState extends State<TrackerTab> {
   void _updateNumber(RowEntry entry, int index, String text) {
     entry.values[index] = int.tryParse(text) ?? 0;
     entry.save();
-    setState(() {}); // recompute the sum row
+    setState(() {});
   }
 
   void _deleteRow(RowEntry entry) {
@@ -99,6 +121,9 @@ class _TrackerTabState extends State<TrackerTab> {
 
   String _formatDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  double get _tableWidth =>
+      kDateColWidth + (kDataColWidth * kColumnLabels.length) + kDeleteColWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -127,78 +152,136 @@ class _TrackerTabState extends State<TrackerTab> {
           ),
         ),
         Expanded(
-          child: entries.isEmpty
-              ? const Center(child: Text('No rows yet. Add one above.'))
-              : SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SingleChildScrollView(
-                    child: DataTable(
-                      columns: [
-                        const DataColumn(label: Text('Date')),
-                        ...kColumnLabels.map((l) => DataColumn(label: Text(l))),
-                        const DataColumn(label: Text('')),
-                      ],
-                      rows: [
-                        ...entries.map((entry) => _buildRow(entry)),
-                        _buildSumRow(sums),
-                      ],
-                    ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                controller: _hScroll,
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: _tableWidth,
+                  height: constraints.maxHeight,
+                  // Header + total row are outside the vertical ListView,
+                  // so they stay pinned while only the middle scrolls.
+                  child: Column(
+                    children: [
+                      _buildHeaderRow(),
+                      Expanded(
+                        child: entries.isEmpty
+                            ? const Center(child: Text('No rows yet.'))
+                            : ListView.builder(
+                                controller: _vScroll,
+                                itemCount: entries.length,
+                                itemBuilder: (context, index) =>
+                                    _buildDataRow(entries[index]),
+                              ),
+                      ),
+                      _buildFooterRow(sums),
+                    ],
                   ),
                 ),
-        ),
-      ],
-    );
-  }
-
-  DataRow _buildRow(RowEntry entry) {
-    return DataRow(
-      cells: [
-        DataCell(
-          Text(_formatDate(entry.date)),
-          onTap: () => _pickDate(entry),
-        ),
-        ...List.generate(kColumnLabels.length, (i) {
-          if (entry.kind == RowKind.checkbox) {
-            return DataCell(
-              Checkbox(
-                value: entry.values[i] == 1,
-                onChanged: (_) => _toggleCheckbox(entry, i),
-              ),
-            );
-          }
-          return DataCell(
-            SizedBox(
-              width: 56,
-              child: TextField(
-                controller: _controllerFor(entry, i),
-                keyboardType: TextInputType.number,
-                textAlign: TextAlign.center,
-                decoration: const InputDecoration(isDense: true),
-                onChanged: (text) => _updateNumber(entry, i, text),
-              ),
-            ),
-          );
-        }),
-        DataCell(
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () => _deleteRow(entry),
+              );
+            },
           ),
         ),
       ],
     );
   }
 
-  DataRow _buildSumRow(List<num> sums) {
-    return DataRow(
-      color: MaterialStateProperty.all(Colors.grey.shade200),
-      cells: [
-        const DataCell(Text('Total', style: TextStyle(fontWeight: FontWeight.bold))),
-        ...sums.map(
-          (s) => DataCell(Text('$s', style: const TextStyle(fontWeight: FontWeight.bold))),
-        ),
-        const DataCell(Text('')),
-      ],
+  Widget _cellBox(double width, Widget child) {
+    return SizedBox(width: width, child: Center(child: child));
+  }
+
+  Widget _buildHeaderRow() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade400)),
+      ),
+      child: Row(
+        children: [
+          _cellBox(kDateColWidth,
+              const Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
+          ...kColumnLabels.map(
+            (l) => _cellBox(kDataColWidth,
+                Text(l, style: const TextStyle(fontWeight: FontWeight.bold))),
+          ),
+          _cellBox(kDeleteColWidth, const SizedBox.shrink()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataRow(RowEntry entry) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        children: [
+          _cellBox(
+            kDateColWidth,
+            InkWell(
+              onTap: () => _pickDate(entry),
+              child: Text(_formatDate(entry.date), style: const TextStyle(fontSize: 12)),
+            ),
+          ),
+          ...List.generate(kColumnLabels.length, (i) {
+            if (entry.kind == RowKind.checkbox) {
+              return _cellBox(
+                kDataColWidth,
+                Checkbox(
+                  value: entry.values[i] == 1,
+                  onChanged: (_) => _toggleCheckbox(entry, i),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+              );
+            }
+            return _cellBox(
+              kDataColWidth,
+              TextField(
+                controller: _controllerFor(entry, i),
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(vertical: 8),
+                ),
+                onChanged: (text) => _updateNumber(entry, i, text),
+              ),
+            );
+          }),
+          _cellBox(
+            kDeleteColWidth,
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 18),
+              padding: EdgeInsets.zero,
+              onPressed: () => _deleteRow(entry),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooterRow(List<num> sums) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        border: Border(top: BorderSide(color: Colors.grey.shade400)),
+      ),
+      child: Row(
+        children: [
+          _cellBox(kDateColWidth,
+              const Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+          ...sums.map(
+            (s) => _cellBox(kDataColWidth,
+                Text('$s', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+          ),
+          _cellBox(kDeleteColWidth, const SizedBox.shrink()),
+        ],
+      ),
     );
   }
 }

@@ -20,6 +20,13 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Tracker',
       theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
+      // Force RTL layout app-wide. If you later add Arabic strings/locale
+      // support via flutter_localizations, this can be replaced by setting
+      // `locale: const Locale('ar')` + supportedLocales instead.
+      builder: (context, child) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: child!,
+      ),
       home: const HomeScreen(),
     );
   }

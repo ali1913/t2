@@ -58,4 +58,5 @@ t2:
 
 
 get:
+    rm app-release.apk
     gh run download --name release-apk
