@@ -19,8 +19,8 @@ make:
     git commit -m "Fresh start with cloud generation"
 
     # 2. Tell git to use your working token to talk to GitHub
-    # git remote add origin https://github.com
+    git remote add origin https://github.com/ali1913/t2.git
 
     # 3. Force push to clear out any older broken files in your repository
-    # git branch -M main
-    # git push -u origin main --force
+    git branch -M main
+    git push -u origin main --force
