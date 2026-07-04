@@ -28,7 +28,7 @@ jobs:
 
     # MAGIC STEP: The cloud machine generates the entire native Android project flawlessly
     - name: Auto-Generate Flutter Architecture
-      run: flutter create --org com.example . --force
+      run: flutter create --org com.example .
 
     - name: Install dependencies
       run: flutter pub get
