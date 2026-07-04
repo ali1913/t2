@@ -1,6 +1,5 @@
 
 
-
 main:
     just -l
     # just touchp .github/workflows/build.yml
@@ -24,3 +23,11 @@ make:
     # 3. Force push to clear out any older broken files in your repository
     git branch -M main
     git push -u origin main --force
+
+t2:
+    git init
+    git add .
+    git commit -m "first commit"
+    git branch -M main
+    git remote add origin https://github.com/ali1913/t2.git
+    git push -u origin main
