@@ -5,11 +5,11 @@ import '../models/row_entry.dart';
 const List<String> kColumnLabels = ['A', 'B', 'C', 'D', 'E'];
 const String kRowsBoxName = 'rows_box';
 
-// Fixed column widths — keeps columns compact instead of relying on
-// DataTable's built-in padding (which is hard to shrink below ~56px/col).
-const double kDateColWidth = 86;
-const double kDataColWidth = 42;
-const double kDeleteColWidth = 40;
+// Flex ratios — Date gets more space than each single data column.
+// Trash column is fixed-width (icon only).
+const int kDateFlex = 3;
+const int kDataFlex = 2;
+const double kDeleteColWidth = 36;
 
 class TrackerTab extends StatefulWidget {
   const TrackerTab({super.key});
@@ -20,57 +20,67 @@ class TrackerTab extends StatefulWidget {
 
 class _TrackerTabState extends State<TrackerTab> {
   late final Box<RowEntry> _box;
-
-  // One TextEditingController per (rowKey, columnIndex) so typing doesn't
-  // lose cursor position or get reset on rebuild.
-  final Map<String, TextEditingController> _controllers = {};
-
   final ScrollController _vScroll = ScrollController();
-  final ScrollController _hScroll = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _box = Hive.box<RowEntry>(kRowsBoxName);
-    // Land on the most recent rows / far edge instead of the top-left.
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd());
   }
 
   void _scrollToEnd() {
-    for (final controller in [_vScroll, _hScroll]) {
-      if (controller.hasClients) {
-        controller.jumpTo(controller.position.maxScrollExtent);
-      }
+    if (_vScroll.hasClients) {
+      _vScroll.jumpTo(_vScroll.position.maxScrollExtent);
     }
   }
 
   @override
   void dispose() {
-    for (final c in _controllers.values) {
-      c.dispose();
-    }
     _vScroll.dispose();
-    _hScroll.dispose();
     super.dispose();
   }
 
-  TextEditingController _controllerFor(RowEntry entry, int colIndex) {
-    final key = '${entry.key}_$colIndex';
-    return _controllers.putIfAbsent(
-      key,
-      () => TextEditingController(text: entry.values[colIndex].toString()),
-    );
-  }
+  Future<void> _addRow(RowKind kind) async {
+    List<num> values = List<num>.filled(kColumnLabels.length, 0);
 
-  void _addRow(RowKind kind) {
-    final entry = RowEntry(
-      date: DateTime.now(),
-      kind: kind,
-      values: List<num>.filled(kColumnLabels.length, 0),
-    );
+    if (kind == RowKind.number) {
+      // Number rows only ever count down, so ask for a starting value.
+      final initial = await _promptInitialValue();
+      if (initial == null) return; // cancelled
+      values = List<num>.filled(kColumnLabels.length, initial);
+    }
+
+    final entry = RowEntry(date: DateTime.now(), kind: kind, values: values);
     _box.add(entry);
     setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd());
+  }
+
+  Future<int?> _promptInitialValue() async {
+    final controller = TextEditingController(text: '0');
+    return showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Starting value'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(context, int.tryParse(controller.text) ?? 0),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _pickDate(RowEntry entry) async {
@@ -93,18 +103,20 @@ class _TrackerTabState extends State<TrackerTab> {
     setState(() {});
   }
 
-  void _updateNumber(RowEntry entry, int index, String text) {
-    entry.values[index] = int.tryParse(text) ?? 0;
+  void _decrementNumber(RowEntry entry, int index) {
+    final current = entry.values[index];
+    entry.values[index] = current > 0 ? current - 1 : 0;
+    entry.save();
+    setState(() {});
+  }
+
+  void _resetNumber(RowEntry entry, int index) {
+    entry.values[index] = 0;
     entry.save();
     setState(() {});
   }
 
   void _deleteRow(RowEntry entry) {
-    _controllers.removeWhere((key, controller) {
-      final match = key.startsWith('${entry.key}_');
-      if (match) controller.dispose();
-      return match;
-    });
     entry.delete();
     setState(() {});
   }
@@ -122,9 +134,6 @@ class _TrackerTabState extends State<TrackerTab> {
   String _formatDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  double get _tableWidth =>
-      kDateColWidth + (kDataColWidth * kColumnLabels.length) + kDeleteColWidth;
-
   @override
   Widget build(BuildContext context) {
     final entries = _box.values.toList();
@@ -132,80 +141,70 @@ class _TrackerTabState extends State<TrackerTab> {
 
     return Column(
       children: [
+        // Header + total row live outside the ListView so they stay pinned
+        // while only the rows in between scroll.
+        _buildHeaderRow(),
+        Expanded(
+          child: entries.isEmpty
+              ? const Center(child: Text('No rows yet.'))
+              : ListView.builder(
+                  controller: _vScroll,
+                  itemCount: entries.length,
+                  itemBuilder: (context, index) => _buildDataRow(entries[index]),
+                ),
+        ),
+        _buildFooterRow(sums),
         Padding(
           padding: const EdgeInsets.all(12.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () => _addRow(RowKind.checkbox),
-                icon: const Icon(Icons.check_box_outlined),
-                label: const Text('Add Checkbox Row'),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: () => _addRow(RowKind.number),
-                icon: const Icon(Icons.numbers),
-                label: const Text('Add Number Row'),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                controller: _hScroll,
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: _tableWidth,
-                  height: constraints.maxHeight,
-                  // Header + total row are outside the vertical ListView,
-                  // so they stay pinned while only the middle scrolls.
-                  child: Column(
-                    children: [
-                      _buildHeaderRow(),
-                      Expanded(
-                        child: entries.isEmpty
-                            ? const Center(child: Text('No rows yet.'))
-                            : ListView.builder(
-                                controller: _vScroll,
-                                itemCount: entries.length,
-                                itemBuilder: (context, index) =>
-                                    _buildDataRow(entries[index]),
-                              ),
-                      ),
-                      _buildFooterRow(sums),
-                    ],
-                  ),
-                ),
-              );
-            },
+          child: Directionality(
+            // Keep button order fixed left-to-right regardless of app RTL.
+            textDirection: TextDirection.ltr,
+            child: Row(
+              children: [
+                Expanded(child: _pillButton(Icons.remove, Colors.green, () => _addRow(RowKind.checkbox))),
+                const SizedBox(width: 12),
+                Expanded(child: _pillButton(Icons.add, Colors.red, () => _addRow(RowKind.number))),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _cellBox(double width, Widget child) {
-    return SizedBox(width: width, child: Center(child: child));
+  Widget _pillButton(IconData icon, Color color, VoidCallback onPressed) {
+    return SizedBox(
+      height: 56,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          shape: const StadiumBorder(),
+          elevation: 0,
+        ),
+        onPressed: onPressed,
+        child: Icon(icon, color: Colors.white, size: 28),
+      ),
+    );
+  }
+
+  Widget _dataCell(int flex, Widget child) {
+    return Expanded(flex: flex, child: Center(child: child));
   }
 
   Widget _buildHeaderRow() {
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         border: Border(bottom: BorderSide(color: Colors.grey.shade400)),
       ),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          _cellBox(kDateColWidth,
-              const Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
+          _dataCell(kDateFlex, const Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
           ...kColumnLabels.map(
-            (l) => _cellBox(kDataColWidth,
-                Text(l, style: const TextStyle(fontWeight: FontWeight.bold))),
+            (l) => _dataCell(kDataFlex, Text(l, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
           ),
-          _cellBox(kDeleteColWidth, const SizedBox.shrink()),
+          SizedBox(width: kDeleteColWidth),
         ],
       ),
     );
@@ -216,45 +215,48 @@ class _TrackerTabState extends State<TrackerTab> {
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          _cellBox(
-            kDateColWidth,
-            InkWell(
+          _dataCell(
+            kDateFlex,
+            GestureDetector(
               onTap: () => _pickDate(entry),
-              child: Text(_formatDate(entry.date), style: const TextStyle(fontSize: 12)),
+              child: Text(_formatDate(entry.date), style: const TextStyle(fontSize: 14)),
             ),
           ),
           ...List.generate(kColumnLabels.length, (i) {
             if (entry.kind == RowKind.checkbox) {
-              return _cellBox(
-                kDataColWidth,
-                Checkbox(
-                  value: entry.values[i] == 1,
-                  onChanged: (_) => _toggleCheckbox(entry, i),
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
+              final checked = entry.values[i] == 1;
+              return _dataCell(
+                kDataFlex,
+                GestureDetector(
+                  onTap: () => _toggleCheckbox(entry, i),
+                  behavior: HitTestBehavior.opaque,
+                  child: Icon(
+                    checked ? Icons.check_rounded : Icons.close_rounded,
+                    color: checked ? Colors.green : Colors.red,
+                    size: 26,
+                  ),
                 ),
               );
             }
-            return _cellBox(
-              kDataColWidth,
-              TextField(
-                controller: _controllerFor(entry, i),
-                keyboardType: TextInputType.number,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 8),
+            return _dataCell(
+              kDataFlex,
+              GestureDetector(
+                onTap: () => _decrementNumber(entry, i),
+                onLongPress: () => _resetNumber(entry, i),
+                behavior: HitTestBehavior.opaque,
+                child: Text(
+                  '${entry.values[i]}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
-                onChanged: (text) => _updateNumber(entry, i, text),
               ),
             );
           }),
-          _cellBox(
-            kDeleteColWidth,
-            IconButton(
+          SizedBox(
+            width: kDeleteColWidth,
+            child: IconButton(
               icon: const Icon(Icons.delete_outline, size: 18),
               padding: EdgeInsets.zero,
               onPressed: () => _deleteRow(entry),
@@ -268,18 +270,20 @@ class _TrackerTabState extends State<TrackerTab> {
   Widget _buildFooterRow(List<num> sums) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        border: Border(top: BorderSide(color: Colors.grey.shade400)),
+        color: Colors.green.shade50,
+        border: Border(
+          top: BorderSide(color: Colors.green.shade300, width: 1.5),
+          bottom: BorderSide(color: Colors.green.shade300, width: 1.5),
+        ),
       ),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          _cellBox(kDateColWidth,
-              const Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+          _dataCell(kDateFlex, Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green.shade800))),
           ...sums.map(
-            (s) => _cellBox(kDataColWidth,
-                Text('$s', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+            (s) => _dataCell(kDataFlex, Text('$s', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green.shade800))),
           ),
-          _cellBox(kDeleteColWidth, const SizedBox.shrink()),
+          SizedBox(width: kDeleteColWidth),
         ],
       ),
     );

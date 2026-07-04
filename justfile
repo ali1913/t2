@@ -1,20 +1,28 @@
 
+main:
+    @just -l
 
-t3:
-    @# git add .github/workflows/build.yml
+build:
+    @# git init
+    @# git add .
+    @# git commit -m "first commit"
+    @# git branch -M main
+    @# git remote add origin https://github.com/ali1913/t2.git
+    @# git push -u origin main
+
     git add .
     git commit -m "F1"
     git push
 
-main:
-    just -l
-    # just touchp .github/workflows/build.yml
-    # just touchp lib/main.dart
+get:
+    rm app-release.apk
+    gh run download --name release-apk
 
-# Create nested parent directories and touch a file
-touchp file_path:
-    mkdir -p "$(dirname "{{file_path}}")" \
-    && touch "{{file_path}}"
+# # Create nested parent directories and touch a file
+
+create:
+    @# just touchp .github/workflows/build.yml
+    @# just touchp lib/main.dart
 
 
 make:
@@ -30,13 +38,10 @@ make:
     git branch -M main
     git push -u origin main --force
 
-t2:
-    git init
-    git add .
-    git commit -m "first commit"
-    git branch -M main
-    git remote add origin https://github.com/ali1913/t2.git
-    git push -u origin main
+
+touchp file_path:
+    mkdir -p "$(dirname "{{file_path}}")" \
+    && touch "{{file_path}}"
 
 
 
@@ -56,7 +61,3 @@ t2:
 # doc:
 # docker run --rm -v "$(pwd)":/app -w /app ghcr.io/cirruslabs/flutter:stable bash build.sh
 
-
-get:
-    rm app-release.apk
-    gh run download --name release-apk

@@ -32,32 +32,67 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _tabIndex = 0; // 0 = Home, 1 = Settings
+
+  static const _pages = [
+    TrackerTab(),
+    _SettingsPlaceholder(),
+  ];
+
+  @override
   Widget build(BuildContext context) {
-    // DefaultTabController + TabBar so adding a second tab later is just:
-    // 1. length: 2
-    // 2. add a Tab(text: '...') below
-    // 3. add the matching widget in the TabBarView children
-    return DefaultTabController(
-      length: 1,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('My App'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Tracker'),
-            ],
-          ),
-        ),
-        body: const TabBarView(
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
           children: [
-            TrackerTab(),
+            _buildTopBar(),
+            Expanded(child: _pages[_tabIndex]),
           ],
         ),
       ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _tabIndex,
+        onTap: (i) => setState(() => _tabIndex = i),
+        // First item renders at the RTL "start" (right side), matching
+        // Home being on the right / Settings on the left.
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), activeIcon: Icon(Icons.settings), label: 'Settings'),
+        ],
+      ),
     );
+  }
+
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text('تذكرة', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.blue),
+            onPressed: () => setState(() => _tabIndex = 1),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsPlaceholder extends StatelessWidget {
+  const _SettingsPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: Text('Settings — coming soon'));
   }
 }
