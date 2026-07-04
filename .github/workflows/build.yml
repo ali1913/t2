@@ -1,0 +1,43 @@
+name: Flutter Perfect Cloud Build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4.2.2
+
+    # Sets up Java for the Android SDK build system
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4.5.0
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    # Sets up the Flutter engine environment
+    - name: Set up Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable'
+
+    # MAGIC STEP: The cloud machine generates the entire native Android project flawlessly
+    - name: Auto-Generate Flutter Architecture
+      run: flutter create --org com.example . --force
+
+    - name: Install dependencies
+      run: flutter pub get
+
+    - name: Build Release APK
+      run: flutter build apk --release
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-apk
+        path: build/app/outputs/flutter-apk/app-release.apk
