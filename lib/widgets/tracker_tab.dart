@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import '../models/row_entry.dart';
 
-const List<String> kColumnLabels = ['A', 'B', 'C', 'D', 'E'];
+const List<String> kColumnLabels = ['ص', 'ظ', 'ع', 'غ', 'ش'];
+// const List<String> kColumnLabels = ['A', 'B', 'C', 'D', 'E'];
 const String kRowsBoxName = 'rows_box';
 
 // Flex ratios — Date gets more space than each single data column.
