@@ -20,12 +20,12 @@ main:
 
 build:
     #!/usr/bin/env bash
-    @# git init
-    @# git add .
-    @# git commit -m "first commit"
-    @# git branch -M main
-    @# git remote add origin https://github.com/ali1913/t2.git
-    @# git push -u origin main
+    # git init
+    # git add .
+    # git commit -m "first commit"
+    # git branch -M main
+    # git remote add origin https://github.com/ali1913/t2.git
+    # git push -u origin main
 
     val=$( just _get_counter )
     just _set_counter $val
