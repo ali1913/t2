@@ -1,8 +1,25 @@
 
+# counter := `cat counter 2>/dev/null || echo 0`
+
+_get_counter:
+    @cat counter 2>/dev/null || echo 0
+
+_set_counter val:
+    @echo $(( {{ val }}+1 )) > counter
+
+# _increment:
+inc:
+    #!/usr/bin/env bash
+    val=$( just _get_counter )
+    # val=$(( val + 1 ))
+    just _set_counter $val
+    echo "Counter is now: $val"
+
 main:
     @just -l
 
 build:
+    #!/usr/bin/env bash
     @# git init
     @# git add .
     @# git commit -m "first commit"
@@ -10,9 +27,15 @@ build:
     @# git remote add origin https://github.com/ali1913/t2.git
     @# git push -u origin main
 
+    val=$( just _get_counter )
+    just _set_counter $val
+
     git add .
-    git commit -m "F1"
+    git commit -m "F$val"
     git push
+
+
+
 
 get:
     rm app-release.apk
