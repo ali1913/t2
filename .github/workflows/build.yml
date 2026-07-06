@@ -39,6 +39,7 @@ jobs:
     - name: Install dependencies
       run: |
         flutter pub add hive hive_flutter
+        flutter pub add file_picker share_plus path_provider
         flutter pub get
 
     - name: Build Release APK

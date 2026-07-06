@@ -1,19 +1,8 @@
 
-# counter := `cat counter 2>/dev/null || echo 0`
+# current_os := os() # Detects "linux", "macos", or "windows"
+# system-info:
+# @echo "Running on a {{ current_os }} machine inside {{ justfile_directory() }}."
 
-_get_counter:
-    @cat counter 2>/dev/null || echo 0
-
-_set_counter val:
-    @echo $(( {{ val }}+1 )) > counter
-
-# _increment:
-inc:
-    #!/usr/bin/env bash
-    val=$( just _get_counter )
-    # val=$(( val + 1 ))
-    just _set_counter $val
-    echo "Counter is now: $val"
 
 main:
     @just -l
@@ -28,7 +17,8 @@ build:
     # git push -u origin main
 
     val=$( just _get_counter )
-    just _set_counter $val
+    just _set_counter $(( val + 1 ))
+    echo $val
 
     git add .
     git commit -m "F$val"
@@ -67,6 +57,21 @@ touchp file_path:
     && touch "{{file_path}}"
 
 
+# counter := `cat counter 2>/dev/null || echo 0`
+
+_get_counter:
+    @cat counter 2>/dev/null || echo 0
+
+_set_counter val:
+    @echo {{ val }} > counter
+
+_increment:
+    #!/usr/bin/env bash
+    val=$( just _get_counter )
+    val=$(( val + 1 ))
+    just _set_counter $val
+    # echo "Counter is now: $val"
+
 
 # FlutterBot
 # flutter2172bot
@@ -83,4 +88,5 @@ touchp file_path:
 
 # doc:
 # docker run --rm -v "$(pwd)":/app -w /app ghcr.io/cirruslabs/flutter:stable bash build.sh
+
 

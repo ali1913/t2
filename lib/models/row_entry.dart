@@ -21,6 +21,18 @@ class RowEntry extends HiveObject {
     required this.kind,
     required this.values,
   });
+
+  Map<String, dynamic> toJson() => {
+        'date': date.toIso8601String(),
+        'kind': kind.name,
+        'values': values,
+      };
+
+  factory RowEntry.fromJson(Map<String, dynamic> json) => RowEntry(
+        date: DateTime.parse(json['date'] as String),
+        kind: RowKind.values.byName(json['kind'] as String),
+        values: (json['values'] as List).map((e) => e as num).toList(),
+      );
 }
 
 /// Manual Hive adapter — avoids needing hive_generator + build_runner in CI.

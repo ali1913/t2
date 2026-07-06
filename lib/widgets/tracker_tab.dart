@@ -72,7 +72,7 @@ class _TrackerTabState extends State<TrackerTab> {
 
   void _decrementNumber(RowEntry entry, int index) {
     final current = entry.values[index];
-    entry.values[index] = current -1;//> 0 ? current - 1 : 0;
+    entry.values[index] = current > 0 ? current - 1 : 0;
     entry.save();
     setState(() {});
   }
@@ -258,7 +258,7 @@ class _TrackerTabState extends State<TrackerTab> {
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          _dataCell(kDateFlex, Text('المجموع', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green.shade800))),
+          _dataCell(kDateFlex, Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green.shade800))),
           ...sums.map(
             (s) => _dataCell(kDataFlex, Text('$s', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green.shade800))),
           ),

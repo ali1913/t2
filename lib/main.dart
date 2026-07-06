@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'models/div_entry.dart';
 import 'models/row_entry.dart';
+import 'widgets/div_tab.dart';
+import 'widgets/settings_tab.dart';
 import 'widgets/tracker_tab.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   Hive.registerAdapter(RowEntryAdapter());
+  Hive.registerAdapter(DivEntryAdapter());
   await Hive.openBox<RowEntry>(kRowsBoxName);
+  await Hive.openBox<DivEntry>(kDivRowsBoxName);
   runApp(const MyApp());
 }
 
@@ -40,11 +45,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _tabIndex = 0; // 0 = Home, 1 = Settings
+  int _tabIndex = 0; // 0 = Home, 1 = Divide, 2 = Settings
 
   static const _pages = [
     TrackerTab(),
-    _SettingsPlaceholder(),
+    DivTab(),
+    SettingsTab(),
   ];
 
   @override
@@ -59,12 +65,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _tabIndex,
         onTap: (i) => setState(() => _tabIndex = i),
         // First item renders at the RTL "start" (right side), matching
-        // Home being on the right / Settings on the left.
+        // Home on the right / Settings on the left, Divide in between.
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.calculate_outlined), activeIcon: Icon(Icons.calculate), label: 'Divide'),
           BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), activeIcon: Icon(Icons.settings), label: 'Settings'),
         ],
       ),
@@ -80,19 +88,10 @@ class _HomeScreenState extends State<HomeScreen> {
           const Text('تذكرة', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
           IconButton(
             icon: const Icon(Icons.settings, color: Colors.blue),
-            onPressed: () => setState(() => _tabIndex = 1),
+            onPressed: () => setState(() => _tabIndex = 2),
           ),
         ],
       ),
     );
-  }
-}
-
-class _SettingsPlaceholder extends StatelessWidget {
-  const _SettingsPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text('Settings — coming soon'));
   }
 }
