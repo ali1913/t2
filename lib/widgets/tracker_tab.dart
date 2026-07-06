@@ -72,7 +72,7 @@ class _TrackerTabState extends State<TrackerTab> {
 
   void _decrementNumber(RowEntry entry, int index) {
     final current = entry.values[index];
-    entry.values[index] = current > 0 ? current - 1 : 0;
+    entry.values[index] = current -1;//> 0 ? current - 1 : 0;
     entry.save();
     setState(() {});
   }
