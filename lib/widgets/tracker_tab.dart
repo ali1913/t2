@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import '../models/row_entry.dart';
 
-const List<String> kColumnLabels = ['ص', 'ظ', 'ع', 'غ', 'ش'];
-// const List<String> kColumnLabels = ['A', 'B', 'C', 'D', 'E'];
+const List<String> kColumnLabels = ['A', 'B', 'C', 'D', 'E'];
 const String kRowsBoxName = 'rows_box';
 
 // Flex ratios — Date gets more space than each single data column.
@@ -43,45 +42,11 @@ class _TrackerTabState extends State<TrackerTab> {
   }
 
   Future<void> _addRow(RowKind kind) async {
-    List<num> values = List<num>.filled(kColumnLabels.length, 0);
-
-    if (kind == RowKind.number) {
-      // Number rows only ever count down, so ask for a starting value.
-      final initial = await _promptInitialValue();
-      if (initial == null) return; // cancelled
-      values = List<num>.filled(kColumnLabels.length, initial);
-    }
-
+    final values = List<num>.filled(kColumnLabels.length, 0);
     final entry = RowEntry(date: DateTime.now(), kind: kind, values: values);
     _box.add(entry);
     setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd());
-  }
-
-  Future<int?> _promptInitialValue() async {
-    final controller = TextEditingController(text: '0');
-    return showDialog<int>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Starting value'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(context, int.tryParse(controller.text) ?? 0),
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _pickDate(RowEntry entry) async {

@@ -30,11 +30,16 @@ jobs:
     - name: Auto-Generate Flutter Architecture
       run: flutter create --org com.example .
 
-    - name: Install dependencies
-      run: flutter pub get
+    # - name: Install dependencies
+    #   run: flutter pub get
 
-    - name: Install dependencies2
-      run: flutter pub add hive hive_flutter
+    # - name: Install dependencies2
+    #   run: flutter pub add hive hive_flutter
+
+    - name: Install dependencies
+      run: |
+        flutter pub add hive hive_flutter
+        flutter pub get
 
     - name: Build Release APK
       run: flutter build apk --release
