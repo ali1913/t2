@@ -10,6 +10,7 @@ const String kRowsBoxName = 'rows_box';
 const int kDateFlex = 3;
 const int kDataFlex = 2;
 const double kDeleteColWidth = 36;
+const double kRowHeight = 52;
 
 class TrackerTab extends StatefulWidget {
   const TrackerTab({super.key});
@@ -157,6 +158,26 @@ class _TrackerTabState extends State<TrackerTab> {
     return Expanded(flex: flex, child: Center(child: child));
   }
 
+  /// Like _dataCell, but the GestureDetector wraps the FULL cell area
+  /// (not just the child's intrinsic size) so taps register anywhere in
+  /// the cell, not just directly on the text/icon glyph.
+  Widget _gestureCell(
+    int flex,
+    Widget child, {
+    VoidCallback? onTap,
+    VoidCallback? onLongPress,
+  }) {
+    return Expanded(
+      flex: flex,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Center(child: child),
+      ),
+    );
+  }
+
   Widget _buildHeaderRow() {
     return Container(
       decoration: BoxDecoration(
@@ -178,46 +199,38 @@ class _TrackerTabState extends State<TrackerTab> {
 
   Widget _buildDataRow(RowEntry entry) {
     return Container(
+      height: kRowHeight,
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
-      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          _dataCell(
+          _gestureCell(
             kDateFlex,
-            GestureDetector(
-              onTap: () => _pickDate(entry),
-              child: Text(_formatDate(entry.date), style: const TextStyle(fontSize: 14)),
-            ),
+            Text(_formatDate(entry.date), style: const TextStyle(fontSize: 14)),
+            onTap: () => _pickDate(entry),
           ),
           ...List.generate(kColumnLabels.length, (i) {
             if (entry.kind == RowKind.checkbox) {
               final checked = entry.values[i] == 1;
-              return _dataCell(
+              return _gestureCell(
                 kDataFlex,
-                GestureDetector(
-                  onTap: () => _toggleCheckbox(entry, i),
-                  behavior: HitTestBehavior.opaque,
-                  child: Icon(
-                    checked ? Icons.check_rounded : Icons.close_rounded,
-                    color: checked ? Colors.green : Colors.red,
-                    size: 26,
-                  ),
+                Icon(
+                  checked ? Icons.check_rounded : Icons.close_rounded,
+                  color: checked ? Colors.green : Colors.red,
+                  size: 26,
                 ),
+                onTap: () => _toggleCheckbox(entry, i),
               );
             }
-            return _dataCell(
+            return _gestureCell(
               kDataFlex,
-              GestureDetector(
-                onTap: () => _decrementNumber(entry, i),
-                onLongPress: () => _resetNumber(entry, i),
-                behavior: HitTestBehavior.opaque,
-                child: Text(
-                  '${entry.values[i]}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
+              Text(
+                '${entry.values[i]}',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
+              onTap: () => _decrementNumber(entry, i),
+              onLongPress: () => _resetNumber(entry, i),
             );
           }),
           SizedBox(
@@ -245,7 +258,7 @@ class _TrackerTabState extends State<TrackerTab> {
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          _dataCell(kDateFlex, Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green.shade800))),
+          _dataCell(kDateFlex, Text('المجموع', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green.shade800))),
           ...sums.map(
             (s) => _dataCell(kDataFlex, Text('$s', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green.shade800))),
           ),
