@@ -18,7 +18,7 @@ build:
 
     val=$( just _get_counter )
     just _set_counter $(( val + 1 ))
-    echo $val
+    # echo $val
 
     git add .
     git commit -m "F$val"
