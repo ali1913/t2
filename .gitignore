@@ -1,5 +1,6 @@
 # Miscellaneous
 *.apk
+*.zip
 *.class
 *.log
 *.pyc
